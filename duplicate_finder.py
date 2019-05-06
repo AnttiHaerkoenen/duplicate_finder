@@ -7,26 +7,28 @@ import numpy as np
 
 def find_duplicates(
         files,
-        hash_size=16,
-        tolerance=0
+        hash_size,
+        tolerance,
+        duplicate_mark,
 ):
     hashes = np.empty((0,), dtype=str)
     duplicates = []
 
+    print("Analysing...")
     for file in files:
         with Image.open(file) as image:
             img_hash = dhash(image, hash_size)
-            print(img_hash)
 
         if is_duplicate(img_hash, hashes, tolerance=tolerance):
-            os.rename(file, '{0}_DUPLICATE'.format(file))
+            basename, suffix = file.split('.')
+            os.rename(file, f'{basename}{duplicate_mark}.{suffix}')
             duplicates.append(file)
         else:
             hashes = np.append(hashes, img_hash)
     print(f"{len(duplicates)} duplicates found.")
 
 
-def dhash(image, hash_size=16):
+def dhash(image, hash_size):
     image = image.convert('L').resize(
         (hash_size + 1, hash_size),
         Image.ANTIALIAS,
@@ -40,9 +42,9 @@ def dhash(image, hash_size=16):
             right = image.getpixel((col + 1, row))
             difference = np.append(difference, left > right)
 
-    difference = difference.reshape((-1, 4))
+    difference = difference.reshape((-1, hash_size))
 
-    hex_str: np.ndarray = difference[:, 0] * 2 ** 3 \
+    hex_str = difference[:, 0] * 2 ** 3 \
         + difference[:, 1] * 2 ** 2 \
         + difference[:, 2] * 2 \
         + difference[:, 3] * 1
@@ -52,7 +54,6 @@ def dhash(image, hash_size=16):
 
 def is_duplicate(img_hash, hashes, tolerance=0):
     for h in hashes:
-        print(hamming_distance(h, img_hash))
         if hamming_distance(h, img_hash) <= tolerance:
             return True
     return False
@@ -66,10 +67,37 @@ def hamming_distance(str_1, str_2):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Find similar pictures using hashing")
-    parser.add_argument('files', nargs='+', help="File names")
-    parser.add_argument('--hash-size', dest='hash_size', help="Size of hash (one side)")
-    parser.add_argument('--tolerance', dest='tolerance', help="Tolerance level for differences")
+    parser = argparse.ArgumentParser(description="Find similar pictures using perceptual hashing")
+    parser.add_argument(
+        'files',
+        nargs='+',
+        help="File names",
+    )
+    parser.add_argument(
+        '--hash-size',
+        dest='hash_size',
+        type=int,
+        default=9,
+        help="Size of hash (one side), default 9",
+    )
+    parser.add_argument(
+        '--tolerance',
+        dest='tolerance',
+        type=int,
+        default=0,
+        help="Tolerance level for differences, default 0",
+    )
+    parser.add_argument(
+        '--duplicate-mark',
+        dest='duplicate',
+        default='_DUPLICATE',
+        help="Duplicate mark",
+    )
 
     args = parser.parse_args()
-    find_duplicates(args.files, hash_size=args.hash_size, tolerance=args.tolerance)
+    find_duplicates(
+        args.files,
+        hash_size=args.hash_size,
+        tolerance=args.tolerance,
+        duplicate_mark=args.duplicate,
+    )
