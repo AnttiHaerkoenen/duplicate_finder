@@ -1,26 +1,29 @@
 import os
+import argparse
 
 from PIL import Image
 import numpy as np
 
 
-def find_duplicates(dir_name, pic_suffices=('.jpg', '.JPG'), hash_size=16, tolerance=0):
-    directory = os.path.join(os.path.abspath(os.path.dirname(__name__)), dir_name)
-    os.chdir(directory)
+def find_duplicates(
+        files,
+        hash_size=16,
+        tolerance=0
+):
     hashes = np.empty((0,), dtype=str)
+    duplicates = []
 
-    for filename in os.listdir(directory):
-        if not filename.endswith(pic_suffices):
-            continue
-
-        with Image.open(filename) as image:
+    for file in files:
+        with Image.open(file) as image:
             img_hash = dhash(image, hash_size)
             print(img_hash)
 
         if is_duplicate(img_hash, hashes, tolerance=tolerance):
-            os.rename(filename, 'DUPLICATE_{0}'.format(filename))
+            os.rename(file, '{0}_DUPLICATE'.format(file))
+            duplicates.append(file)
         else:
             hashes = np.append(hashes, img_hash)
+    print(f"{len(duplicates)} duplicates found.")
 
 
 def dhash(image, hash_size=16):
@@ -63,4 +66,10 @@ def hamming_distance(str_1, str_2):
 
 
 if __name__ == '__main__':
-    find_duplicates('esimerkki', hash_size=16)
+    parser = argparse.ArgumentParser(description="Find similar pictures using hashing")
+    parser.add_argument('files', nargs='+', help="File names")
+    parser.add_argument('--hash-size', dest='hash_size', help="Size of hash (one side)")
+    parser.add_argument('--tolerance', dest='tolerance', help="Tolerance level for differences")
+
+    args = parser.parse_args()
+    find_duplicates(args.files, hash_size=args.hash_size, tolerance=args.tolerance)
