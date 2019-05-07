@@ -10,7 +10,12 @@ def find_duplicates(
         hash_size,
         tolerance,
         duplicate_mark,
+        comparisons,
 ):
+    if isinstance(comparisons, int) and 0 <= comparisons < len(files):
+        comparison_slice = slice(-comparisons, None)
+    else:
+        comparison_slice = slice(0, None)
     hashes = np.empty((0,), dtype=str)
     duplicates = []
 
@@ -19,7 +24,7 @@ def find_duplicates(
         with Image.open(file) as image:
             img_hash = dhash(image, hash_size)
 
-        if is_duplicate(img_hash, hashes, tolerance=tolerance):
+        if is_duplicate(img_hash, hashes[comparison_slice], tolerance=tolerance):
             basename, suffix = file.split('.')
             os.rename(file, f'{basename}{duplicate_mark}.{suffix}')
             duplicates.append(file)
@@ -93,6 +98,12 @@ if __name__ == '__main__':
         default='_DUPLICATE',
         help="Duplicate mark",
     )
+    parser.add_argument(
+        '--comparisons',
+        dest='comparisons',
+        default=None,
+        help="How many previous pictures should be compared with, default all",
+    )
 
     args = parser.parse_args()
     find_duplicates(
@@ -100,4 +111,5 @@ if __name__ == '__main__':
         hash_size=args.hash_size,
         tolerance=args.tolerance,
         duplicate_mark=args.duplicate,
+        comparisons=args.comparisons,
     )
